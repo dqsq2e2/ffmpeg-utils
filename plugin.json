@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "utility",
   "author": "Trae",
-  "description": "Provides FFmpeg binaries for other plugins.",
+  "description": "FFmpeg支持.",
   "supported_extensions": [],
   "entry_point": "ffmpeg_utils.dll",
   "config_schema": {
