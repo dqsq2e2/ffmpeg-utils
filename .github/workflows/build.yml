@@ -81,16 +81,19 @@ jobs:
             artifact_name: ffmpeg-utils-windows-x64
             ffmpeg_url: "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
             use_cross: false
+            zip_name: ffmpeg-utils-windows-x64.zip
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: ffmpeg-utils-linux-x64
             ffmpeg_url: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
             use_cross: false
+            zip_name: ffmpeg-utils-linux-x64.zip
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: ffmpeg-utils-linux-arm64
             ffmpeg_url: "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
             use_cross: true
+            zip_name: ffmpeg-utils-linux-arm64.zip
 
     steps:
       - uses: actions/checkout@v4
@@ -133,25 +136,56 @@ jobs:
             chmod +x bin/ffprobe
           fi
 
-      - name: Prepare Artifact
+      - name: Package Plugin
         shell: bash
         run: |
           mkdir -p package
           cp plugin.json package/
+          cp README.md package/
+          cp LICENSE package/
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             cp target/${{ matrix.target }}/release/ffmpeg_utils.dll package/
             cp bin/ffmpeg.exe package/
             cp bin/ffprobe.exe package/
+            
+            # Create Zip
+            cd package
+            7z a ../${{ matrix.zip_name }} *
           else
             cp target/${{ matrix.target }}/release/libffmpeg_utils.so package/ffmpeg_utils.so
             cp bin/ffmpeg package/
             cp bin/ffprobe package/
+            
+            # Create Zip
+            cd package
+            zip -r ../${{ matrix.zip_name }} *
           fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip_name }}
+          path: ${{ matrix.zip_name }}
+          retention-days: 1
+
+  release:
+    needs: [check-version, build]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
-          files: package/*
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
