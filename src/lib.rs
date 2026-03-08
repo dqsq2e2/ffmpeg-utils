@@ -11,18 +11,13 @@ pub unsafe extern "C" fn plugin_invoke(
     params: *const u8,
     result_ptr: *mut *mut u8,
 ) -> c_int {
-    let method_str = match CStr::from_ptr(method as *const i8).to_str() {
+    let method_str = match CStr::from_ptr(method as *const std::os::raw::c_char).to_str() {
         Ok(s) => s,
         Err(_) => return -1,
     };
 
-    let params_str = match CStr::from_ptr(params as *const i8).to_str() {
+    let _params_str = match CStr::from_ptr(params as *const std::os::raw::c_char).to_str() {
         Ok(s) => s,
-        Err(_) => return -1,
-    };
-
-    let params_json: Value = match serde_json::from_str(params_str) {
-        Ok(v) => v,
         Err(_) => return -1,
     };
 
@@ -58,7 +53,7 @@ pub unsafe extern "C" fn plugin_invoke(
 #[no_mangle]
 pub unsafe extern "C" fn plugin_free(ptr: *mut u8) {
     if !ptr.is_null() {
-        let _ = CString::from_raw(ptr as *mut i8);
+        let _ = CString::from_raw(ptr as *mut std::os::raw::c_char);
     }
 }
 
