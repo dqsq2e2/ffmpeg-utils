@@ -1,0 +1,18 @@
+{
+    "id": "ffmpeg-utils",
+    "name": "FFmpeg Provider",
+    "version": "1.0.0",
+    "type": "utility",
+    "author": "Trae",
+    "description": "Provides FFmpeg binaries for other plugins.",
+    "supported_extensions": [],
+    "entry_point": "ffmpeg_utils.dll",
+    "config_schema": {
+        "version_check": {
+            "type": "boolean",
+            "title": "Check Version",
+            "description": "Verify FFmpeg version on startup",
+            "default": true
+        }
+    }
+}
