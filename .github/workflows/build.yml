@@ -71,6 +71,8 @@ jobs:
     if: needs.check-version.outputs.should_release == 'true'
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
