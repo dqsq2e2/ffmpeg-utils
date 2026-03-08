@@ -162,8 +162,6 @@ jobs:
         run: |
           mkdir -p package
           cp plugin.json package/
-          cp README.md package/
-          cp LICENSE package/
           
           # Use jq to update the entry_point in plugin.json
           jq --arg entry "${{ matrix.entry_point }}" '.entry_point = $entry' package/plugin.json > package/plugin.json.tmp && mv package/plugin.json.tmp package/plugin.json
