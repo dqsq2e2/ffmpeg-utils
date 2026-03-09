@@ -25,6 +25,7 @@ pub unsafe extern "C" fn plugin_invoke(
         "get_ffmpeg_path" => get_ffmpeg_path(),
         "get_ffprobe_path" => get_ffprobe_path(),
         "check_version" => check_version(),
+        "garbage_collect" => Ok(json!({})),
         _ => Err(format!("Unknown method: {}", method_str)),
     };
 
