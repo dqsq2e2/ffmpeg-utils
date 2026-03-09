@@ -72,11 +72,11 @@ fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
             //       ffprobe.exe
             
             // Adjust based on typical layout
-            let plugin_dir = root.join("plugins").join("ffmpeg-utils");
+            let plugin_dir = root.join("plugins").join("FFmpeg Provider@1.0.0");
             
             // On some systems it might be directly in plugin dir or in bin
             // Check ./bin/ first
-            let mut path = plugin_dir.join("bin").join(binary_name);
+            let mut path = plugin_dir.join(binary_name);
             
             // Handle extension
             if let Some(ext) = std::env::consts::EXE_EXTENSION.is_empty().then(|| "").or(Some(std::env::consts::EXE_EXTENSION)) {
@@ -85,17 +85,6 @@ fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
                  }
             }
             
-            if path.exists() {
-                return Some(path);
-            }
-            
-            // Check plugin root
-            let mut path = plugin_dir.join(binary_name);
-             if let Some(ext) = std::env::consts::EXE_EXTENSION.is_empty().then(|| "").or(Some(std::env::consts::EXE_EXTENSION)) {
-                 if !ext.is_empty() {
-                     path.set_extension(ext);
-                 }
-            }
             if path.exists() {
                 return Some(path);
             }
