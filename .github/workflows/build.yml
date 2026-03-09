@@ -59,11 +59,15 @@ jobs:
         with:
           script: |
             const version = '${{ needs.check-version.outputs.version }}';
+            let sha = '${{ steps.auto_commit.outputs.commit_hash }}';
+            if (!sha) {
+              sha = context.sha;
+            }
             github.rest.git.createRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: `refs/tags/v${version}`,
-              sha: context.sha
+              sha: sha
             })
 
   build:
@@ -79,27 +83,29 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: ffmpeg-utils-windows-x64
-            ffmpeg_url: "https://github.com/acoustid/ffmpeg-build/releases/download/v8.0-1/ffmpeg-8.0-audio-x86_64-w64-mingw32.tar.gz"
+            ffmpeg_url: "https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-2/ffmpeg-8.0-audio-x86_64-w64-mingw32.tar.gz"
             use_cross: false
             zip_name: ffmpeg-utils-windows-x64.zip
             entry_point: ffmpeg_utils.dll
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: ffmpeg-utils-linux-x64
-            ffmpeg_url: "https://github.com/acoustid/ffmpeg-build/releases/download/v8.0-1/ffmpeg-8.0-audio-x86_64-linux-gnu.tar.gz"
+            ffmpeg_url: "https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-2/ffmpeg-8.0-audio-x86_64-linux-gnu.tar.gz"
             use_cross: false
             zip_name: ffmpeg-utils-linux-x64.zip
             entry_point: libffmpeg_utils.so
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: ffmpeg-utils-linux-arm64
-            ffmpeg_url: "https://github.com/acoustid/ffmpeg-build/releases/download/v8.0-1/ffmpeg-8.0-audio-arm64-linux-gnu.tar.gz"
+            ffmpeg_url: "https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-2/ffmpeg-8.0-audio-arm64-linux-gnu.tar.gz"
             use_cross: true
             zip_name: ffmpeg-utils-linux-arm64.zip
             entry_point: libffmpeg_utils.so
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.check-version.outputs.version }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -124,35 +130,27 @@ jobs:
         run: |
           mkdir -p bin
           
-          # All URLs are now tar.gz, so unified logic
+          # All URLs are tar.gz from custom build
           curl -L -o ffmpeg.tar.gz "${{ matrix.ffmpeg_url }}"
           tar -xf ffmpeg.tar.gz
           
-          # The directory structure from acoustid builds is usually:
+          # The directory structure from custom build:
           # ffmpeg-8.0-audio-x86_64-w64-mingw32/bin/ffmpeg.exe
           # ffmpeg-8.0-audio-x86_64-linux-gnu/bin/ffmpeg
           
           # Find the extracted directory (starts with ffmpeg-)
           DIR=$(find . -maxdepth 1 -type d -name "ffmpeg-*" | head -n 1)
+          echo "Found FFmpeg directory: $DIR"
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            # Windows: Check inside bin/ or root
-            if [ -f "$DIR/bin/ffmpeg.exe" ]; then
-                mv "$DIR/bin/ffmpeg.exe" bin/
-                mv "$DIR/bin/ffprobe.exe" bin/
-            elif [ -f "$DIR/ffmpeg.exe" ]; then
-                mv "$DIR/ffmpeg.exe" bin/
-                mv "$DIR/ffprobe.exe" bin/
-            fi
+            # Windows: Check inside bin/
+            # Your custom build puts binaries in bin/
+            mv "$DIR/bin/ffmpeg.exe" bin/
+            mv "$DIR/bin/ffprobe.exe" bin/
           else
-            # Linux: Check inside bin/ or root
-            if [ -f "$DIR/bin/ffmpeg" ]; then
-                mv "$DIR/bin/ffmpeg" bin/
-                mv "$DIR/bin/ffprobe" bin/
-            elif [ -f "$DIR/ffmpeg" ]; then
-                mv "$DIR/ffmpeg" bin/
-                mv "$DIR/ffprobe" bin/
-            fi
+            # Linux: Check inside bin/
+            mv "$DIR/bin/ffmpeg" bin/
+            mv "$DIR/bin/ffprobe" bin/
             chmod +x bin/ffmpeg
             chmod +x bin/ffprobe
           fi
