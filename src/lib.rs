@@ -60,51 +60,77 @@ pub unsafe extern "C" fn plugin_free(ptr: *mut u8) {
 
 // --- Implementation ---
 
+#[cfg(windows)]
+fn get_dll_dir() -> Option<PathBuf> {
+    None
+}
+
+#[cfg(not(windows))]
+fn get_dll_dir() -> Option<PathBuf> {
+    None
+}
+
 fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
     let mut search_paths = Vec::new();
 
-    // 1. Check relative to CWD (Development & typical run)
-    if let Ok(cwd) = std::env::current_dir() {
-        search_paths.push(cwd.join("plugins").join("ffmpeg-utils"));
-        search_paths.push(cwd.join("plugins").join("ffmpeg-utils").join("bin"));
-        search_paths.push(cwd.join("backend").join("plugins").join("ffmpeg-utils"));
-        search_paths.push(cwd.join("backend").join("plugins").join("ffmpeg-utils").join("bin"));
-        // Also check root/bin (common in some setups)
-        search_paths.push(cwd.join("bin")); 
-    }
-
-    // 2. Check relative to Executable (Production / Release)
+    // 1. Check relative to Executable (Production usually)
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(root) = current_exe.parent() {
-            // Standard deployment: plugins/ffmpeg-utils/
-            search_paths.push(root.join("plugins").join("ffmpeg-utils"));
-            search_paths.push(root.join("plugins").join("ffmpeg-utils").join("bin"));
-            // Flat deployment
             search_paths.push(root.to_path_buf());
-            search_paths.push(root.join("bin"));
         }
+    }
+
+    // 2. Check relative to CWD (Development usually)
+    if let Ok(cwd) = std::env::current_dir() {
+        search_paths.push(cwd);
     }
 
     let exe_ext = if cfg!(windows) { "exe" } else { "" };
 
-    for dir in search_paths {
-        let mut path = dir.join(binary_name);
-        if !exe_ext.is_empty() {
-            path.set_extension(exe_ext);
-        }
-        
-        if path.exists() {
-            return Some(path);
+    for root in search_paths {
+        // Try to find "plugins" directory
+        let possible_plugin_dirs = vec![
+            root.join("plugins"),
+            root.join("backend").join("plugins"),
+            root.join("ting-reader").join("backend").join("plugins"),
+            // Case: running from target/debug/deps, so plugins is up 3 levels then plugins
+            root.join("..").join("..").join("plugins"), 
+        ];
+
+        for plugins_dir in possible_plugin_dirs {
+            if plugins_dir.exists() {
+                // Look for any folder starting with "FFmpeg Provider" or "ffmpeg-utils"
+                if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
+                    for entry in entries.filter_map(|e| e.ok()) {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                            if dir_name.starts_with("FFmpeg Provider") || dir_name.starts_with("ffmpeg-utils") {
+                                // Found candidate directory, check for binary
+                                let mut bin_path = path.join(binary_name);
+                                if !exe_ext.is_empty() { bin_path.set_extension(exe_ext); }
+                                if bin_path.exists() { return Some(bin_path); }
+
+                                let mut bin_sub_path = path.join("bin").join(binary_name);
+                                if !exe_ext.is_empty() { bin_sub_path.set_extension(exe_ext); }
+                                if bin_sub_path.exists() { return Some(bin_sub_path); }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
-
-    // 3. Fallback: Check if it's in PATH
-    // We can't easily check PATH without running 'which'/'where', 
-    // but we can return the bare command if we want to rely on system PATH.
-    // However, the caller expects a valid path.
-    // Let's assume if we can't find it, we return None and let the error propagate.
     
-    None
+    // Check ./(binary).exe (CWD root fallback)
+    let mut local_path = PathBuf::from(binary_name);
+    if !exe_ext.is_empty() { local_path.set_extension(exe_ext); }
+    if local_path.exists() {
+        return Some(local_path);
+    }
+
+    // Default to system PATH
+    Some(PathBuf::from(binary_name))
 }
 
 fn get_ffmpeg_path() -> Result<Value, String> {
