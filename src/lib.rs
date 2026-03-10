@@ -61,46 +61,49 @@ pub unsafe extern "C" fn plugin_free(ptr: *mut u8) {
 // --- Implementation ---
 
 fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
+    let mut search_paths = Vec::new();
+
+    // 1. Check relative to CWD (Development & typical run)
+    if let Ok(cwd) = std::env::current_dir() {
+        search_paths.push(cwd.join("plugins").join("ffmpeg-utils"));
+        search_paths.push(cwd.join("plugins").join("ffmpeg-utils").join("bin"));
+        search_paths.push(cwd.join("backend").join("plugins").join("ffmpeg-utils"));
+        search_paths.push(cwd.join("backend").join("plugins").join("ffmpeg-utils").join("bin"));
+        // Also check root/bin (common in some setups)
+        search_paths.push(cwd.join("bin")); 
+    }
+
+    // 2. Check relative to Executable (Production / Release)
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(root) = current_exe.parent() {
-            // Plugins structure:
-            // plugins/
-            //   ffmpeg-utils/
-            //     ffmpeg_utils.dll
-            //     bin/
-            //       ffmpeg.exe
-            //       ffprobe.exe
-            
-            // Adjust based on typical layout
-            let plugin_dir = root.join("plugins").join("ffmpeg-utils");
-            
-            // On some systems it might be directly in plugin dir or in bin
-            // Check ./bin/ first
-            let mut path = plugin_dir.join("bin").join(binary_name);
-            
-            // Handle extension
-            if let Some(ext) = std::env::consts::EXE_EXTENSION.is_empty().then(|| "").or(Some(std::env::consts::EXE_EXTENSION)) {
-                 if !ext.is_empty() {
-                     path.set_extension(ext);
-                 }
-            }
-            
-            if path.exists() {
-                return Some(path);
-            }
-            
-            // Check plugin root
-            let mut path = plugin_dir.join(binary_name);
-             if let Some(ext) = std::env::consts::EXE_EXTENSION.is_empty().then(|| "").or(Some(std::env::consts::EXE_EXTENSION)) {
-                 if !ext.is_empty() {
-                     path.set_extension(ext);
-                 }
-            }
-            if path.exists() {
-                return Some(path);
-            }
+            // Standard deployment: plugins/ffmpeg-utils/
+            search_paths.push(root.join("plugins").join("ffmpeg-utils"));
+            search_paths.push(root.join("plugins").join("ffmpeg-utils").join("bin"));
+            // Flat deployment
+            search_paths.push(root.to_path_buf());
+            search_paths.push(root.join("bin"));
         }
     }
+
+    let exe_ext = if cfg!(windows) { "exe" } else { "" };
+
+    for dir in search_paths {
+        let mut path = dir.join(binary_name);
+        if !exe_ext.is_empty() {
+            path.set_extension(exe_ext);
+        }
+        
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    // 3. Fallback: Check if it's in PATH
+    // We can't easily check PATH without running 'which'/'where', 
+    // but we can return the bare command if we want to rely on system PATH.
+    // However, the caller expects a valid path.
+    // Let's assume if we can't find it, we return None and let the error propagate.
+    
     None
 }
 
