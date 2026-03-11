@@ -1,21 +1,21 @@
 {
-    "id": "ffmpeg-utils",
-    "name": "FFmpeg Provider",
-    "version": "1.0.0",
-    "plugin_type": "utility",
-    "type": "utility",
-    "author": "Trae",
-    "description": "为其他插件提供 FFmpeg 二进制文件。",
-    "supported_extensions": [],
-    "license": "MIT",
-    "homepage": "https://github.com/dqsq2e2/ffmpeg-utils",
-    "entry_point": "ffmpeg_utils.dll",
-    "config_schema": {
-        "version_check": {
-            "type": "boolean",
-            "title": "Check Version",
-            "description": "Verify FFmpeg version on startup",
-            "default": true
-        }
+  "id": "ffmpeg-utils",
+  "name": "FFmpeg Provider",
+  "version": "1.0.0",
+  "plugin_type": "utility",
+  "type": "utility",
+  "author": "Trae",
+  "description": "为其他插件提供 FFmpeg 二进制文件。",
+  "supported_extensions": [],
+  "license": "MIT",
+  "homepage": "https://github.com/dqsq2e2/ffmpeg-utils",
+  "entry_point": "ffmpeg_utils.dll",
+  "config_schema": {
+    "version_check": {
+      "type": "boolean",
+      "title": "Check Version",
+      "description": "Verify FFmpeg version on startup",
+      "default": true
     }
+  }
 }
