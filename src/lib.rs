@@ -130,7 +130,7 @@ fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
     }
 
     // Default to system PATH
-    Some(PathBuf::from(binary_name))
+    None
 }
 
 fn get_ffmpeg_path() -> Result<Value, String> {
