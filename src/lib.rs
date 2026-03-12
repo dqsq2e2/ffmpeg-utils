@@ -1,7 +1,13 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_int;
 use std::path::PathBuf;
+use std::sync::RwLock;
 use serde_json::{json, Value};
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref PLUGIN_DIR: RwLock<Option<PathBuf>> = RwLock::new(None);
+}
 
 // --- FFI Interface ---
 
@@ -16,12 +22,13 @@ pub unsafe extern "C" fn plugin_invoke(
         Err(_) => return -1,
     };
 
-    let _params_str = match CStr::from_ptr(params as *const std::os::raw::c_char).to_str() {
+    let params_str = match CStr::from_ptr(params as *const std::os::raw::c_char).to_str() {
         Ok(s) => s,
         Err(_) => return -1,
     };
 
     let result = match method_str {
+        "initialize" => initialize(params_str),
         "get_ffmpeg_path" => get_ffmpeg_path(),
         "get_ffprobe_path" => get_ffprobe_path(),
         "check_version" => check_version(),
@@ -70,8 +77,28 @@ fn get_dll_dir() -> Option<PathBuf> {
     None
 }
 
+fn initialize(params_str: &str) -> Result<Value, String> {
+    let params: Value = serde_json::from_str(params_str).map_err(|e| e.to_string())?;
+    
+    if let Some(plugin_path_str) = params.get("plugin_path").and_then(|v| v.as_str()) {
+        let path = PathBuf::from(plugin_path_str);
+        if let Ok(mut lock) = PLUGIN_DIR.write() {
+            *lock = Some(path);
+        }
+    }
+    
+    Ok(json!({ "status": "initialized" }))
+}
+
 fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
     let mut search_paths = Vec::new();
+    
+    // 0. Check initialized plugin dir (Preferred)
+    if let Ok(lock) = PLUGIN_DIR.read() {
+        if let Some(path) = lock.as_ref() {
+            search_paths.push(path.clone());
+        }
+    }
 
     // 1. Check relative to Executable (Production usually)
     if let Ok(current_exe) = std::env::current_exe() {
