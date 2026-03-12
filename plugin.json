@@ -1,7 +1,7 @@
 {
   "id": "ffmpeg-utils",
   "name": "FFmpeg Provider",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "plugin_type": "utility",
   "type": "utility",
   "author": "Trae",
