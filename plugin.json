@@ -4,7 +4,7 @@
   "version": "1.0.3",
   "plugin_type": "utility",
   "type": "utility",
-  "author": "Trae",
+  "author": "Ting Reader Team",
   "description": "为其他插件提供 FFmpeg 二进制文件。",
   "supported_extensions": [],
   "license": "MIT",
