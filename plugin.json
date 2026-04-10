@@ -1,7 +1,7 @@
 {
   "id": "ffmpeg-utils",
   "name": "FFmpeg Provider",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "plugin_type": "utility",
   "type": "utility",
   "author": "Ting Reader Team",
