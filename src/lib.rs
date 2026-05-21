@@ -67,16 +67,6 @@ pub unsafe extern "C" fn plugin_free(ptr: *mut u8) {
 
 // --- Implementation ---
 
-#[cfg(windows)]
-fn get_dll_dir() -> Option<PathBuf> {
-    None
-}
-
-#[cfg(not(windows))]
-fn get_dll_dir() -> Option<PathBuf> {
-    None
-}
-
 fn initialize(params_str: &str) -> Result<Value, String> {
     let params: Value = serde_json::from_str(params_str).map_err(|e| e.to_string())?;
     
