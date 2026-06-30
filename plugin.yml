@@ -1,6 +1,6 @@
 id: ffmpeg-utils
 name: FFmpeg Provider
-version: 1.1.1
+version: 1.1.2
 min_core_version: 1.4.8
 author: Ting Reader Team
 description:

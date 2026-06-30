@@ -92,21 +92,21 @@ jobs:
             platform_tag: windows-x86_64
             artifact_name: ffmpeg_utils.dll
             entry_point: ffmpeg_utils.dll
-            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-10/ffmpeg-8.0-audio-x86_64-w64-mingw32.tar.gz
+            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.1.2-2/ffmpeg-8.1.2-audio-encode-x86_64-w64-mingw32.tar.gz
             use_cross: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             platform_tag: linux-x86_64
             artifact_name: libffmpeg_utils.so
             entry_point: libffmpeg_utils.so
-            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-10/ffmpeg-8.0-audio-x86_64-linux-gnu.tar.gz
+            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.1.2-2/ffmpeg-8.1.2-audio-encode-x86_64-linux-gnu.tar.gz
             use_cross: false
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             platform_tag: linux-aarch64
             artifact_name: libffmpeg_utils.so
             entry_point: libffmpeg_utils.so
-            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.0-10/ffmpeg-8.0-audio-arm64-linux-gnu.tar.gz
+            ffmpeg_url: https://github.com/dqsq2e2/ffmpeg-build/releases/download/v8.1.2-2/ffmpeg-8.1.2-audio-encode-arm64-linux-gnu.tar.gz
             use_cross: true
 
     steps:
