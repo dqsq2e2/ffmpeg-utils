@@ -1,0 +1,37 @@
+id: ffmpeg-utils
+name: FFmpeg Provider
+version: 1.1.1
+min_core_version: 1.4.8
+author: Ting Reader Team
+description:
+  zh: 为其他插件提供 FFmpeg 二进制文件。
+  en: Provides FFmpeg binaries for other plugins.
+runtime: native
+license: MIT
+repo: dqsq2e2/ffmpeg-utils
+entry_point: ffmpeg_utils.dll
+capabilities:
+- id: utility.tools
+  kind: tool_provider
+  invoke: execute
+  tools:
+  - name: ffmpeg.provider
+    description: Provide FFmpeg binaries for plugins
+  - name: ffmpeg.get_path
+    description: Get the FFmpeg binary path
+  - name: ffprobe.get_path
+    description: Get the FFprobe binary path
+  - name: ffmpeg.check_version
+    description: Check the bundled FFmpeg version
+config_schema:
+  type: object
+  properties:
+    version_check:
+      type: boolean
+      title:
+        zh: 检查版本
+        en: Check Version
+      description:
+        zh: 启动时验证 FFmpeg 版本
+        en: Verify FFmpeg version on startup
+      default: true

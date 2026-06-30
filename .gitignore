@@ -1,0 +1,9 @@
+/target
+/dist
+/bin
+/*.dll
+/*.so
+/*.dylib
+/.trpack-signing-key.json
+/ffmpeg.tar.gz
+/ffmpeg-*

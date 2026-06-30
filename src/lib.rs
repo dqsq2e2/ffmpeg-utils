@@ -1,9 +1,9 @@
+use lazy_static::lazy_static;
+use serde_json::{json, Value};
 use std::ffi::{CStr, CString};
 use std::os::raw::c_int;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
-use serde_json::{json, Value};
-use lazy_static::lazy_static;
 
 lazy_static! {
     static ref PLUGIN_DIR: RwLock<Option<PathBuf>> = RwLock::new(None);
@@ -29,6 +29,7 @@ pub unsafe extern "C" fn plugin_invoke(
 
     let result = match method_str {
         "initialize" => initialize(params_str),
+        "execute" => execute(params_str),
         "get_ffmpeg_path" => get_ffmpeg_path(),
         "get_ffprobe_path" => get_ffprobe_path(),
         "check_version" => check_version(),
@@ -48,7 +49,7 @@ pub unsafe extern "C" fn plugin_invoke(
         }
         Err(e) => {
             let error_json = json!({ "error": e }).to_string();
-             let c_string = match CString::new(error_json) {
+            let c_string = match CString::new(error_json) {
                 Ok(s) => s,
                 Err(_) => return -1,
             };
@@ -69,68 +70,76 @@ pub unsafe extern "C" fn plugin_free(ptr: *mut u8) {
 
 fn initialize(params_str: &str) -> Result<Value, String> {
     let params: Value = serde_json::from_str(params_str).map_err(|e| e.to_string())?;
-    
+
     if let Some(plugin_path_str) = params.get("plugin_path").and_then(|v| v.as_str()) {
         let path = PathBuf::from(plugin_path_str);
         if let Ok(mut lock) = PLUGIN_DIR.write() {
             *lock = Some(path);
         }
     }
-    
+
     Ok(json!({ "status": "initialized" }))
+}
+
+fn candidate(root: &Path, binary_name: &str) -> Option<PathBuf> {
+    let mut direct = root.join(binary_name);
+    if cfg!(windows) {
+        direct.set_extension("exe");
+    }
+    if direct.exists() {
+        return Some(direct);
+    }
+
+    let mut bundled = root.join("bin").join(binary_name);
+    if cfg!(windows) {
+        bundled.set_extension("exe");
+    }
+    bundled.exists().then_some(bundled)
 }
 
 fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
     let mut search_paths = Vec::new();
-    
-    // 0. Check initialized plugin dir (Preferred)
+
     if let Ok(lock) = PLUGIN_DIR.read() {
         if let Some(path) = lock.as_ref() {
             search_paths.push(path.clone());
         }
     }
 
-    // 1. Check relative to Executable (Production usually)
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(root) = current_exe.parent() {
             search_paths.push(root.to_path_buf());
         }
     }
 
-    // 2. Check relative to CWD (Development usually)
     if let Ok(cwd) = std::env::current_dir() {
         search_paths.push(cwd);
     }
 
-    let exe_ext = if cfg!(windows) { "exe" } else { "" };
+    for root in &search_paths {
+        if let Some(path) = candidate(root, binary_name) {
+            return Some(path);
+        }
+    }
 
-    for root in search_paths {
-        // Try to find "plugins" directory
-        let possible_plugin_dirs = vec![
+    for root in &search_paths {
+        let plugin_roots = [
             root.join("plugins"),
             root.join("backend").join("plugins"),
             root.join("ting-reader").join("backend").join("plugins"),
-            // Case: running from target/debug/deps, so plugins is up 3 levels then plugins
-            root.join("..").join("..").join("plugins"), 
+            root.join("..").join("..").join("plugins"),
         ];
 
-        for plugins_dir in possible_plugin_dirs {
+        for plugins_dir in plugin_roots {
             if plugins_dir.exists() {
-                // Look for any folder starting with "FFmpeg Provider" or "ffmpeg-utils"
                 if let Ok(entries) = std::fs::read_dir(&plugins_dir) {
                     for entry in entries.filter_map(|e| e.ok()) {
                         let path = entry.path();
-                        if path.is_dir() {
-                            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                            if dir_name.starts_with("FFmpeg Provider") || dir_name.starts_with("ffmpeg-utils") {
-                                // Found candidate directory, check for binary
-                                let mut bin_path = path.join(binary_name);
-                                if !exe_ext.is_empty() { bin_path.set_extension(exe_ext); }
-                                if bin_path.exists() { return Some(bin_path); }
-
-                                let mut bin_sub_path = path.join("bin").join(binary_name);
-                                if !exe_ext.is_empty() { bin_sub_path.set_extension(exe_ext); }
-                                if bin_sub_path.exists() { return Some(bin_sub_path); }
+                        if path.is_dir()
+                            && path.file_name().is_some_and(|name| name == "ffmpeg-utils")
+                        {
+                            if let Some(path) = candidate(&path, binary_name) {
+                                return Some(path);
                             }
                         }
                     }
@@ -138,15 +147,7 @@ fn get_bin_path(binary_name: &str) -> Option<PathBuf> {
             }
         }
     }
-    
-    // Check ./(binary).exe (CWD root fallback)
-    let mut local_path = PathBuf::from(binary_name);
-    if !exe_ext.is_empty() { local_path.set_extension(exe_ext); }
-    if local_path.exists() {
-        return Some(local_path);
-    }
 
-    // Default to system PATH
     None
 }
 
@@ -169,4 +170,40 @@ fn get_ffprobe_path() -> Result<Value, String> {
 fn check_version() -> Result<Value, String> {
     // Just return success for now
     Ok(json!({ "status": "ok", "version": "unknown" }))
+}
+
+fn execute(params_str: &str) -> Result<Value, String> {
+    let params: Value = serde_json::from_str(params_str).map_err(|e| e.to_string())?;
+    let tool_name = params
+        .get("name")
+        .or_else(|| params.get("tool"))
+        .or_else(|| params.get("tool_name"))
+        .and_then(|value| value.as_str())
+        .unwrap_or("ffmpeg.provider");
+
+    match tool_name {
+        "ffmpeg.provider" => Ok(json!({
+            "tool": tool_name,
+            "ffmpeg": path_or_error("ffmpeg"),
+            "ffprobe": path_or_error("ffprobe"),
+            "version": check_version().unwrap_or_else(|error| json!({ "error": error })),
+        })),
+        "ffmpeg.get_path" => get_ffmpeg_path(),
+        "ffprobe.get_path" => get_ffprobe_path(),
+        "ffmpeg.check_version" => check_version(),
+        _ => Err(format!("Unknown tool: {}", tool_name)),
+    }
+}
+
+fn path_or_error(binary_name: &str) -> Value {
+    match get_bin_path(binary_name) {
+        Some(path) => json!({
+            "available": true,
+            "path": path.to_string_lossy().to_string(),
+        }),
+        None => json!({
+            "available": false,
+            "error": format!("{} binary not found in plugin directory", binary_name),
+        }),
+    }
 }
